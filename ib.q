@@ -51,7 +51,8 @@ tick:{                                             / tickid!(table;column) dict 
   v:raze {@[cols;x;cols l x]} each key x;          / column names which each tick represents
   w:(raze x)!flip (u;v);                           / tickid!(table;column)
   _[;0N] over w}[tick]                             / drop 0N keys from the dict
-tick:tick,\:(::),{l[x],:y;x insert l[x;y`id];}     / tickid!(table;column;parser;processor)
+upd:{l[x],:y;h(".u.upd";x;value l[x;y`id]);}       / default: update last table and send the last record to downstream
+tick:tick,\:(::),upd;                              / tickid!(table;column;parser;processor)
 
 / custom tick type parsers
 tick[45;2]:"n"${"z"$-10957+x%8.64e4}"J"$           / last timestamp parser: from unix time string to kdb timespan
@@ -67,7 +68,7 @@ tick[5;3]:{                                        / last size;
   if[(l[x;y`id;`sz]=y`sz) &                        / if unchanged size ..
     9e6>y[`ti]-l[x;y`id;`ti];                      / and if not older than 9ms from previous update
     : ::];                                         / then ignore this duplicate trade; this is known IBKR bug
-  l[x],:y;x insert l[x;y`id];}                     / otherwise finalize complete trade
+  upd[x;y];}                                       / otherwise finalize complete trade
 tick[49;3]:{0N!(x;y)}                              / TODO: tickType 49: Halted (tickGeneric)
 
 / register callbacks
@@ -87,6 +88,10 @@ tick[49;3]:{0N!(x;y)}                              / TODO: tickType 49: Halted (
     from `s where i in x 0 ;
     }]                                             / smart exchanges will be later used to populate ex field for each tick of SMART contract
 
+.ib.connect[x.host;x.port;1i];                     / connect
+sub[x.topic;x.sym];                                / subscribe
+if[not h:neg@[hopen;`$":",x.tplant;0];             / if unable to connect to tickerplant, will capture data locally
+  .u.upd:insert]                                   / define capture function locally
 /
 globals used
 x - init configuration

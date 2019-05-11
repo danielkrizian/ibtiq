@@ -1,7 +1,7 @@
 / v2014.03.12 from https://github.com/KxSystems/kdb-tick/blob/master/tick.q
 / q tick.q [schema] [destination directory] [-t milisecond batches] -p 5010 [-o h]
 / q tick.q sym . -p 5001 </dev/null >foo 2>&1 &
-system"l tick/",(src:first .z.x,enlist"sym"),".q"
+system"l ",(src:first .z.x,enlist"sym"),".q"
 
 if[not system"p";system"p 5010"]
 
@@ -20,7 +20,7 @@ ld:{                                               / create the log .u.L in (x) 
 
 tick:{                                             / (x) source file with table schemas; (y) log file path
   init[];                                          / run .u.init[] to create .u.t and .u.w
-  if[not min(`time`sym~2#key flip value@)each t;   / check that all .u.t tables have both `time`sym cols
+  if[not min(`ti`sym~2#key flip value@)each t;     / check that all .u.t tables have both `time`sym cols
     '`timesym];                                    / if not - throw error
   @[;`sym;`g#]each t;                              / set group attribute to sym col; speeds up .u.sel query
   d::.z.D;                                         / set .u.d as today's date
