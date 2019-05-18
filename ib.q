@@ -59,16 +59,22 @@ tick[45;2]:"n"${"z"$-10957+x%8.64e4}"J"$           / last timestamp parser: from
 tick[84;2]:first                                   / last exchange parser
 
 / custom tick type processors
+tick[1 2;3]:{l[x],:y;l[x;y`id;`asz`bsz]:0Nj;}      / last bid/ask px;mark as incomplete record with null size, waiting for size to arrive
+tick[3;3]:{                                        / last ask size - will push the one-sided quote only if size does not repeat
+  if[(l[x;y`id;`asz]=y`asz) &                      / if unchanged size ..
+    9e6>y[`ti]-l[x;y`id;`ti]; : ::];               / and if not older than 9ms from previous update, then ignore this tick
+  upd[x;y];}                                       / otherwise top bid tick is complete; push it
 tick[32 33;3]:{[x;y]}                              / bid exchange,ask exchange; not used
 tick[45;3]:{l[x],:y;}                              / last timestamp: incomplete record til sz arrival
 tick[84;3]:{if[count ib:s[y`id;`smart;y`ex;0];     / exchange of last trade; if SMART contract:
     y[`ex]:exib ib;l[x],:y;];}                     / convert from IB ex code to our nomenclature
 tick[4;3]:{l[x],:y;l[x;y`id;`sz]:0Nj;}             / last price: incomplete record til sz arrives; mark sz as yet missing
-tick[5;3]:{                                        / last size;
-  if[(l[x;y`id;`sz]=y`sz) &                        / if unchanged size ..
-    9e6>y[`ti]-l[x;y`id;`ti];                      / and if not older than 9ms from previous update
-    : ::];                                         / then ignore this duplicate trade; this is known IBKR bug
-  upd[x;y];}                                       / otherwise finalize complete trade
+.u.usz:{                                           / update size; x:last bid/ask/trade size
+  {if[(l[x;y`id;z]=y z) &                          / if last size unchanged ...
+      9e6>y[`ti]-l[x;y`id;`ti]; : ::];             / and if not older than 9ms from previous update, then ignore this tick
+    if[not 0<y z;: ::];                            / ignore zero sizes - they are initialization events sent by server
+    upd[x;y];}[;;x]}                               / otherwise tick is complete; finalize and push it
+tick[0 3 5;3]:.u.usz@/:`bsz`asz`sz                 / last size for bid/ask/trade; apply version of usz function depending on whether size is bid, ask or trade
 tick[49;3]:{0N!(x;y)}                              / TODO: tickType 49: Halted (tickGeneric)
 
 / register callbacks
@@ -88,8 +94,14 @@ tick[49;3]:{0N!(x;y)}                              / TODO: tickType 49: Halted (
     from `s where i in x 0 ;
     }]                                             / smart exchanges will be later used to populate ex field for each tick of SMART contract
 
-.ib.connect[x.host;x.port;1i];                     / connect
-sub[x.topic;x.sym];                                / subscribe
+.z.ts:{                                            / (re)connect on timer
+  if[not .ib.isConnected[];
+    .ib.connect[x.host;x.port;1i];
+    sub[x.topic;x.sym];                            / subscribe
+    ];
+  }
+
+if[not system"t";system"t 1000"];
 if[not h:neg@[hopen;`$":",x.tplant;0];             / if unable to connect to tickerplant, will capture data locally
   .u.upd:insert]                                   / define capture function locally
 /
@@ -98,7 +110,7 @@ x - init configuration
 e - topics
 s - subscriptions
 l - last
-
+/ TODO: document quote limitation of reqMktData - quotes can cross because we are receiving isolated ticks, not two-sided top quotes from IB
 / OPTIONAL: collecting SMART quotes broken down by bbo exchanges.
 /  WARNING: SMART sizes are aggregate, hence are omitted (null) for individual exchanges
 tick[32;3]:{l[x],:y;bex:y`bex;aex:l[x;y`id;`aex];
