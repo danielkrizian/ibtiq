@@ -13,7 +13,7 @@ upd:insert                                         / what to do about incoming d
   @[;`sym;`g#] each t;                             / reapply `g attribute to all tables with the sym column
   }
 
-.u.rep:{                                           / replay log; (x) table schemas; (y) (log rows;log filepath)
+.u.rep:{                                           / replay log; x: list of (table;schema); y: (#rows to read;log filepath)
   (.[;();:;].)each x;                              / init schema using empty tables from tickerplant to replicate the same schemas
   if[null first y;:()];                            / exit if empty log
   -11!y;                                           / replay first (y 0) log records into tables;
@@ -22,7 +22,6 @@ upd:insert                                         / what to do about incoming d
 
 / connect to ticker plant for (schema;(logcount;log)), subscribe to all tables and replay
 .u.rep .(hopen `$":",.u.x 0)"(.u.sub[`;`];`.u `i`L)"
-
 
 /
 examples:
